@@ -1,31 +1,39 @@
 from app import db
 from datetime import datetime
 
+class Convenio(db.Model):
+    __tablename__ = 'convenios'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_convenio = db.Column(db.String(255), nullable=False)
+
+    def __repr__(self):
+        return f'<Convenio {self.nome_convenio}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome_convenio': self.nome_convenio
+        }
+    
 class Paciente(db.Model):
-    __tablename__ = 'paciente'
+    __tablename__ = 'pacientes'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome = db.Column(db.String(255), nullable=False)
     cpf = db.Column(db.String(14), unique=True, nullable=False)
-    rg = db.Column(db.String(20), nullable=True)
     data_nascimento = db.Column(db.Date, nullable=False)
     telefone = db.Column(db.String(15), nullable=True)
     email = db.Column(db.String(100), nullable=True)
     endereco = db.Column(db.String(255), nullable=True)
-    contrato = db.Column(db.String(9), nullable=True)
+    numero = db.Column(db.String(10), nullable=True)
+    bairro = db.Column(db.String(100), nullable=True)
+    cidade = db.Column(db.String(100), nullable=True)
+    estado_civil = db.Column(db.Enum('solteiro', 'casado', 'divorciado', 'viúvo'), nullable=False)
+    profissao = db.Column(db.String(100), nullable=True)
 
-    # Relacionamento com agendamentos
-    agendamentos = db.relationship('Agendamento', backref='paciente', lazy=True)
-
-    def __init__(self, nome, cpf, rg, data_nascimento, telefone=None, email=None, endereco=None, contrato=None):
-        self.nome = nome
-        self.cpf = cpf
-        self.rg = rg
-        self.data_nascimento = data_nascimento
-        self.telefone = telefone
-        self.email = email
-        self.endereco = endereco
-        self.contrato = contrato
+    # Relacionamento com convenios
+    convenios = db.relationship('Convenio', secondary='paciente_convenio', backref='pacientes')
 
     def __repr__(self):
         return f'<Paciente {self.nome}>'
@@ -35,29 +43,56 @@ class Paciente(db.Model):
             'id': self.id,
             'nome': self.nome,
             'cpf': self.cpf,
-            'rg': self.rg,
             'data_nascimento': self.data_nascimento.strftime('%Y-%m-%d'),
             'telefone': self.telefone,
             'email': self.email,
             'endereco': self.endereco,
-            'contrato': self.contrato
+            'numero': self.numero,
+            'bairro': self.bairro,
+            'cidade': self.cidade,
+            'estado_civil': self.estado_civil,
+            'profissao': self.profissao
         }
+    
+class PacienteConvenio(db.Model):
+    __tablename__ = 'paciente_convenio'
 
+    id_paciente = db.Column(db.Integer, db.ForeignKey('pacientes.id'), primary_key=True)
+    id_convenio = db.Column(db.Integer, db.ForeignKey('convenios.id'), primary_key=True)
 
+    def __repr__(self):
+        return f'<PacienteConvenio {self.id_paciente}-{self.id_convenio}>'
+    
+class Especialidade(db.Model):
+    __tablename__ = 'especialidades'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_especialidade = db.Column(db.String(100), nullable=False)
+
+    def __repr__(self):
+        return f'<Especialidade {self.nome_especialidade}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome_especialidade': self.nome_especialidade
+        }
+    
 class Profissional(db.Model):
     __tablename__ = 'profissionais'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     nome = db.Column(db.String(255), nullable=False)
-    especialidade = db.Column(db.String(100), nullable=False)
-    crm = db.Column(db.String(50), unique=True, nullable=False)
-    tipo_contrato = db.Column(db.Enum('autonomo', 'contratado', 'conveniado'), nullable=False)
-    disponibilidade = db.Column(db.String(255))
-    valor_consulta = db.Column(db.Numeric(10, 2))
-    valor_exame = db.Column(db.Numeric(10, 2))
+    id_especialidade = db.Column(db.Integer, db.ForeignKey('especialidades.id'), nullable=False)
+    registro_profissional = db.Column(db.String(50), unique=True, nullable=False)
+    telefone = db.Column(db.String(15), nullable=True)
+    email = db.Column(db.String(100), nullable=True)
+    endereco = db.Column(db.String(255), nullable=True)
 
-    # Relacionamento com agendamentos
-    agendamentos = db.relationship('Agendamento', backref='profissional', lazy=True)
+    # Relacionamento com especialidade
+    especialidade = db.relationship('Especialidade', backref='profissionais')
+    # Relacionamento com clinicas
+    clinicas = db.relationship('Clinica', secondary='clinica_profissional', backref='profissionais')
 
     def __repr__(self):
         return f'<Profissional {self.nome}>'
@@ -66,90 +101,98 @@ class Profissional(db.Model):
         return {
             'id': self.id,
             'nome': self.nome,
-            'especialidade': self.especialidade,
-            'crm': self.crm,
-            'tipo_contrato': self.tipo_contrato,
-            'disponibilidade': self.disponibilidade,
-            'valor_consulta': str(self.valor_consulta) if self.valor_consulta else None,
-            'valor_exame': str(self.valor_exame) if self.valor_exame else None
+            'id_especialidade': self.id_especialidade,
+            'registro_profissional': self.registro_profissional,
+            'telefone': self.telefone,
+            'email': self.email,
+            'endereco': self.endereco
         }
-
-
+    
 class Clinica(db.Model):
     __tablename__ = 'clinicas'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nome = db.Column(db.String(255), nullable=False)
+    descricao = db.Column(db.String(255), nullable=False)
     cnpj = db.Column(db.String(20), unique=True, nullable=False)
-    endereco = db.Column(db.String(255))
-    telefone = db.Column(db.String(15))
-    email = db.Column(db.String(100))
-
-    # Relacionamento com agendamentos
-    agendamentos = db.relationship('Agendamento', backref='clinica', lazy=True)
+    telefone = db.Column(db.String(15), nullable=True)
+    whatsapp = db.Column(db.String(15), nullable=True)
+    email = db.Column(db.String(100), nullable=True)
+    endereco = db.Column(db.String(255), nullable=True)
 
     def __repr__(self):
-        return f'<Clinica {self.nome}>'
+        return f'<Clinica {self.descricao}>'
 
     def to_dict(self):
         return {
             'id': self.id,
-            'nome': self.nome,
+            'descricao': self.descricao,
             'cnpj': self.cnpj,
-            'endereco': self.endereco,
             'telefone': self.telefone,
-            'email': self.email
+            'whatsapp': self.whatsapp,
+            'email': self.email,
+            'endereco': self.endereco
         }
+    
+class ClinicaProfissional(db.Model):
+    __tablename__ = 'clinica_profissional'
 
+    id_clinica = db.Column(db.Integer, db.ForeignKey('clinicas.id'), primary_key=True)
+    id_profissional = db.Column(db.Integer, db.ForeignKey('profissionais.id'), primary_key=True)
 
+    def __repr__(self):
+        return f'<ClinicaProfissional {self.id_clinica}-{self.id_profissional}>'
+    
 class Servico(db.Model):
     __tablename__ = 'servicos'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nome_servico = db.Column(db.String(255), nullable=False)
-    descricao = db.Column(db.Text)
-    tipo_servico = db.Column(db.Enum('consulta', 'exame'), nullable=False)
+    tipo = db.Column(db.Integer, nullable=False)  # 1 para consulta, 2 para exame
+    descricao = db.Column(db.Text, nullable=True)
+    id_profissional = db.Column(db.Integer, db.ForeignKey('profissionais.id'), nullable=True)
+    id_clinica = db.Column(db.Integer, db.ForeignKey('clinicas.id'), nullable=False)
+    valor = db.Column(db.Numeric(10, 2), nullable=True)
+    preparo = db.Column(db.Text, nullable=True)
+    observacoes = db.Column(db.Text, nullable=True)
 
-    # Relacionamento com agendamentos
-    agendamentos = db.relationship('Agendamento', backref='servico', lazy=True)
+    # Relacionamentos
+    profissional = db.relationship('Profissional', backref='servicos')
+    clinica = db.relationship('Clinica', backref='servicos')
 
     def __repr__(self):
-        return f'<Servico {self.nome_servico}>'
+        return f'<Servico {self.id}>'
 
     def to_dict(self):
         return {
             'id': self.id,
-            'nome_servico': self.nome_servico,
+            'tipo': self.tipo,
             'descricao': self.descricao,
-            'tipo_servico': self.tipo_servico
+            'id_profissional': self.id_profissional,
+            'id_clinica': self.id_clinica,
+            'valor': str(self.valor) if self.valor else None,
+            'preparo': self.preparo,
+            'observacoes': self.observacoes
         }
-
+    
 class Agendamento(db.Model):
     __tablename__ = 'agendamentos'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_paciente = db.Column(db.Integer, db.ForeignKey('paciente.id'), nullable=False)
+    data_solicitacao = db.Column(db.DateTime, nullable=False)
+    id_solicitante = db.Column(db.Integer, nullable=False)  # Pode ser paciente ou profissional
+    id_paciente = db.Column(db.Integer, db.ForeignKey('pacientes.id'), nullable=False)
+    id_servico = db.Column(db.Integer, db.ForeignKey('servicos.id'), nullable=False)
     id_profissional = db.Column(db.Integer, db.ForeignKey('profissionais.id'), nullable=True)
     id_clinica = db.Column(db.Integer, db.ForeignKey('clinicas.id'), nullable=True)
-    id_servico = db.Column(db.Integer, db.ForeignKey('servicos.id'), nullable=False)
     data_agendamento = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.Enum('pendente', 'confirmado', 'realizado', 'cancelado'), default='pendente', nullable=False)
+    horario = db.Column(db.Time, nullable=False)
     valor = db.Column(db.Numeric(10, 2), nullable=True)
-    forma_pagamento = db.Column(db.Enum('credito', 'debito', 'dinheiro', 'pix'), nullable=False)
-    observacoes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.Integer, nullable=False)  # 0 - pendente, 1 - confirmado, etc.
 
     # Relacionamentos
-
-    def __init__(self, id_paciente, id_servico, data_agendamento, forma_pagamento, id_profissional=None, id_clinica=None, status='pendente', valor=None, observacoes=None):
-        self.id_paciente = id_paciente
-        self.id_profissional = id_profissional
-        self.id_clinica = id_clinica
-        self.id_servico = id_servico
-        self.data_agendamento = data_agendamento
-        self.status = status
-        self.valor = valor
-        self.forma_pagamento = forma_pagamento
-        self.observacoes = observacoes
+    paciente = db.relationship('Paciente', backref='agendamentos')
+    servico = db.relationship('Servico', backref='agendamentos')
+    profissional = db.relationship('Profissional', backref='agendamentos')
+    clinica = db.relationship('Clinica', backref='agendamentos')
 
     def __repr__(self):
         return f'<Agendamento {self.id}>'
@@ -157,13 +200,31 @@ class Agendamento(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'data_solicitacao': self.data_solicitacao.strftime('%Y-%m-%d %H:%M:%S'),
+            'id_solicitante': self.id_solicitante,
             'id_paciente': self.id_paciente,
+            'id_servico': self.id_servico,
             'id_profissional': self.id_profissional,
             'id_clinica': self.id_clinica,
-            'id_servico': self.id_servico,
             'data_agendamento': self.data_agendamento.strftime('%Y-%m-%d %H:%M:%S'),
-            'status': self.status,
+            'horario': self.horario.strftime('%H:%M:%S'),
             'valor': str(self.valor) if self.valor else None,
-            'forma_pagamento': self.forma_pagamento,
-            'observacoes': self.observacoes
+            'status': self.status
+        }
+    
+from app import db
+
+class Especialidade(db.Model):
+    __tablename__ = 'especialidades'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome_especialidade = db.Column(db.String(100), nullable=False)
+
+    def __repr__(self):
+        return f'<Especialidade {self.nome_especialidade}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome_especialidade': self.nome_especialidade
         }
